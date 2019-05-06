@@ -1,0 +1,1 @@
+int *kmp(char *str);
