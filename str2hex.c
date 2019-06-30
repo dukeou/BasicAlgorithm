@@ -6,7 +6,7 @@
 char *str2hex(char *str)
 {
     char *hex, *p;
-    hex = (char*)malloc(strlen(str) << 1 + 1);
+    hex = (char*)malloc((strlen(str) << 1) + 1);
     for(p = hex, p[0] = 0; str[0]; ++str)
     {
         p += sprintf(p, "%02hhX", str[0]);
