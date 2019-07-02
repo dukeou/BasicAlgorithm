@@ -8,9 +8,12 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 
-void *thread_main(void *data);
 #define THREAD_NUM 4
-#if 0
+#define MAX_COUNT 100000
+#define METHOD_ONE
+void *thread_main(void *data);
+
+#ifdef METHOD_ONE
 typedef struct
 {
     int id;
@@ -34,14 +37,12 @@ int main(int argc, char *argv[])
     char file_name[] = "file_X";
     char sem_name[] = "sem_X";
     char sem_name2[] = "sem2_X";
-    mode_t mode;
-    mode = 0666;
     for(i = 0; i < THREAD_NUM; ++i)
     {
         file_name[5] = 'A' + i;
         sem_name[4] = 'A' + i;
         sem_name2[5] = 'A' + i;
-        fd_list[i] = open(file_name, O_RDWR | O_CREAT | O_TRUNC, mode);
+        fd_list[i] = open(file_name, O_RDWR | O_CREAT | O_TRUNC, 0666);
         sem_list[i] = sem_open(sem_name, O_CREAT|O_EXCL, S_IRWXU, 0);
         sem_list2[i] = sem_open(sem_name2, O_CREAT|O_EXCL, S_IRWXU, 1);
     }
@@ -49,7 +50,7 @@ int main(int argc, char *argv[])
     {
         data_list[i].id = i + 1;
         data_list[i].write_num = i + 1;
-        data_list[i].max_count = 10;
+        data_list[i].max_count = MAX_COUNT;
         data_list[i].fd_in = &fd_list[i];
         data_list[i].fd_out = &fd_list[(i + 1)%THREAD_NUM];
         data_list[i].sem_in = sem_list[i];
@@ -67,7 +68,9 @@ int main(int argc, char *argv[])
         sem_name[4] = 'A' + i;
         sem_name2[5] = 'A' + i;
         sem_unlink(sem_name);
+        sem_close(sem_list[i]);
         sem_unlink(sem_name2);
+        sem_close(sem_list2[i]);
     }
 }
 
@@ -91,7 +94,7 @@ void *thread_main(void *data)
     }
     pthread_exit(NULL);
 }
-#endif
+#else
 typedef struct
 {
     int id;
@@ -124,7 +127,7 @@ int main(int argc, char *argv[])
     {
         data_list[i].id = i + 1;
         data_list[i].write_num = i + 1;
-        data_list[i].max_count = 10;
+        data_list[i].max_count = MAX_COUNT;
         data_list[i].fd_index = i;
         data_list[i].fd_list = fd_list;
         data_list[i].shared_counter = &counter;
@@ -148,7 +151,7 @@ void *thread_main(void *data)
     while(count < my_data->max_count)
     {
         fd = my_data->fd_list[my_data->fd_index];
-        my_data->fd_index = (my_data->fd_index + 3) % THREAD_NUM;
+        my_data->fd_index = (my_data->fd_index + THREAD_NUM - 1) % THREAD_NUM;
         write(fd, buf, strlen(buf));
         ++count;
         pthread_mutex_lock(my_data->lock);
@@ -157,8 +160,8 @@ void *thread_main(void *data)
             pthread_cond_broadcast(my_data->condition);
         else
             pthread_cond_wait(my_data->condition, my_data->lock);
-        printf("%d %d\n", my_data->id, my_data->write_num);
         pthread_mutex_unlock(my_data->lock);
     }
     pthread_exit(NULL);
 }
+#endif
